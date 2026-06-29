@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تدقيق اكتمال ملف المريض — Apex Care</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f4f0; --surface:#fff; --border:#e2e0db; --border2:#ccc9c1;
+  --text:#1a1a18; --muted:#6b6860; --accent:#1a3c5e; --accent2:#2563a8;
+  --green:#1a6b3c; --green-bg:#eaf4ee; --red:#8b1a1a; --red-bg:#fdeaea;
+  --amber:#7a4e0a; --amber-bg:#fef3dc; --gray:#f0efe9;
+  --r:8px; --rl:12px; --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans Arabic',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+button{font-family:var(--sans);cursor:pointer}
+input,select,textarea{font-family:var(--sans)}
+
+/* topbar */
+.topbar{background:var(--accent);color:#fff;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .logo{width:30px;height:30px;background:rgba(255,255,255,0.15);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.brand h1{font-size:14px;font-weight:500}
+.brand p{font-size:11px;opacity:.6;margin-top:1px}
+.gas-badge{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.7);font-family:var(--mono)}
+.gas-badge.on{border-color:#4ade80;color:#4ade80}
+
+/* shell */
+.shell{max-width:1200px;margin:0 auto;padding:1.25rem 1rem 3rem}
+
+/* tabs */
+.tabs{display:flex;gap:2px;border-bottom:1.5px solid var(--border);margin-bottom:1.25rem}
+.tab{padding:8px 16px;font-size:13px;font-weight:500;border:none;background:transparent;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1.5px;cursor:pointer}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1.25rem 1.5rem;margin-bottom:1rem}
+.card-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:13px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);cursor:pointer}
+.btn:hover{background:var(--gray)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent2);border-color:var(--accent2)}
+.btn-success{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-danger{color:var(--red);border-color:#f5c6c6}
+.btn-danger:hover{background:var(--red-bg)}
+
+/* fields */
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;font-weight:500;color:var(--muted)}
+input[type=text],input[type=date],select,textarea{
+  height:36px;padding:0 10px;font-size:13px;
+  border:1px solid var(--border2);border-radius:var(--r);
+  background:var(--surface);color:var(--text)
+}
+input[type=text]:focus,select:focus,input[type=date]:focus{outline:none;border-color:var(--accent2)}
+textarea{height:auto;padding:8px 10px;resize:vertical}
+
+/* grid */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:700px){.g2,.g3,.g4{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+/* section label */
+.sec{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+/* audit table */
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;min-width:700px}
+.tbl th{background:var(--accent);color:#fff;padding:8px 10px;text-align:center;font-weight:500;white-space:nowrap;font-size:12px}
+.tbl th.field-th{text-align:right;min-width:200px}
+.tbl th.section-th{background:#344054;text-align:right;font-size:11px;letter-spacing:.4px}
+.tbl td{padding:7px 10px;border-bottom:1px solid var(--border);text-align:center;vertical-align:middle}
+.tbl td.field-td{text-align:right;font-size:12px;color:var(--text)}
+.tbl td.field-td .ar{font-weight:500}
+.tbl td.field-td .en{font-size:11px;color:var(--muted);margin-top:1px}
+.tbl tr:hover td{background:#fafaf7}
+.tbl tr.section-row td,.tbl tr.section-row th{background:#f0efe9;font-weight:600;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;padding:5px 10px}
+
+/* YNA */
+.yna{display:flex;gap:3px;justify-content:center}
+.yb{width:34px;height:28px;border:1px solid var(--border2);border-radius:6px;background:transparent;font-size:11px;font-weight:600;color:var(--muted);font-family:var(--mono);cursor:pointer}
+.yb:hover{background:var(--gray)}
+.yb.Y.on{background:var(--green-bg);color:var(--green);border-color:#86efac}
+.yb.N.on{background:var(--red-bg);color:var(--red);border-color:#fca5a5}
+.yb.NA.on{background:var(--gray);color:var(--muted);border-color:var(--border2)}
+
+/* pct */
+.pct{font-size:12px;font-weight:600;font-family:var(--mono)}
+.hi{color:var(--green)}.mi{color:var(--amber)}.lo{color:var(--red)}.nn{color:var(--muted)}
+
+/* kpi */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.25rem}
+.kpi-v{font-size:26px;font-weight:600;font-family:var(--mono)}
+.kpi-l{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+.kpi.dark{background:var(--accent);border-color:var(--accent)}
+.kpi.dark .kpi-v,.kpi.dark .kpi-l{color:#fff}
+.kpi.dark .kpi-l{opacity:.65}
+
+/* bar */
+.bar-wrap{height:6px;background:var(--gray);border-radius:3px;overflow:hidden;margin-top:5px}
+.bar-fill{height:100%;border-radius:3px;transition:width .4s}
+
+/* session history */
+.s-hdr{display:grid;grid-template-columns:100px 1fr 90px 90px 80px 70px;gap:8px;padding:6px 12px;font-size:11px;font-weight:600;color:var(--muted);background:var(--gray);border-radius:var(--r) var(--r) 0 0;border-bottom:1px solid var(--border2)}
+.s-row{display:grid;grid-template-columns:100px 1fr 90px 90px 80px 70px;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;align-items:center}
+.s-row:hover{background:#fafaf7}
+.s-row:last-child{border-bottom:none}
+
+/* compare */
+.cmp-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.cmp-lbl{width:130px;text-align:right;font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0}
+.cmp-bars{flex:1;display:flex;flex-direction:column;gap:3px}
+.cmp-bar{height:10px;border-radius:5px;min-width:4px;transition:width .4s}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--surface);border-radius:var(--rl);padding:1.5rem;width:480px;max-width:95vw}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:4px}
+.modal p{font-size:13px;color:var(--muted);margin-bottom:1rem}
+
+/* toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:300;white-space:nowrap}
+.toast.show{opacity:1}
+
+/* section visibility */
+.section{display:none}.section.active{display:block}
+.divider{border:none;border-top:1px solid var(--border);margin:.75rem 0}
+.row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.empty{text-align:center;padding:2.5rem;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">AC</div>
+    <div>
+      <h1>تدقيق اكتمال ملف المريض · Patient File Completeness Audit</h1>
+      <p>عيادات أبكس كير · Apex Care Clinics</p>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span class="gas-badge" id="gas-badge">● غير متصل</span>
+    <button class="btn btn-sm" onclick="showModal()" style="color:#fff;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.1)">⚙ GAS</button>
+  </div>
+</div>
+
+<div class="shell">
+
+<div class="tabs">
+  <button class="tab active" onclick="goTab('audit')">📋 التدقيق</button>
+  <button class="tab" onclick="goTab('results')">📊 النتائج</button>
+  <button class="tab" onclick="goTab('history')">🕐 السجل</button>
+  <button class="tab" onclick="goTab('compare')">⚖ المقارنة</button>
+</div>
+
+<!-- ══ TAB: AUDIT ══ -->
+<div id="tab-audit" class="section active">
+
+  <!-- session meta -->
+  <div class="card">
+    <div class="card-title">معلومات الجلسة · Session Info</div>
+    <div class="g3" style="margin-bottom:10px">
+      <div class="field"><label>التاريخ / Date</label><input type="date" id="s-date"></div>
+      <div class="field"><label>المدقق / Auditor</label><input type="text" id="s-auditor" placeholder="الاسم"></div>
+      <div class="field"><label>الفرع / Branch</label>
+        <select id="s-branch">
+          <option value="">— الفرع —</option>
+          <option value="بريدة">بريدة · Buraydah</option>
+          <option value="عنيزة">عنيزة · Unaizah</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>ملاحظات / Notes</label><textarea id="s-notes" rows="2" placeholder="ملاحظات..."></textarea></div>
+  </div>
+
+  <!-- files -->
+  <div class="card">
+    <div class="card-title">
+      أرقام الملفات · MRN Numbers
+      <button class="btn btn-sm" onclick="addFile()">+ ملف جديد</button>
+    </div>
+    <div class="g4" id="mrn-inputs"></div>
+  </div>
+
+  <!-- audit table -->
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tbl-wrap">
+      <table class="tbl" id="audit-tbl">
+        <thead id="tbl-head"></thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+    <button class="btn" onclick="clearSession()">↺ مسح</button>
+    <button class="btn btn-primary" onclick="saveLocal()">💾 حفظ محلي</button>
+    <button class="btn btn-success" onclick="saveGAS()">↑ حفظ في Sheets</button>
+  </div>
+</div>
+
+<!-- ══ TAB: RESULTS ══ -->
+<div id="tab-results" class="section">
+  <div class="kpi-grid" id="kpis"></div>
+  <div class="g2">
+    <div class="card">
+      <div class="sec">اكتمال كل حقل · Per Field</div>
+      <div id="field-results"></div>
+    </div>
+    <div class="card">
+      <div class="sec">اكتمال كل ملف · Per File</div>
+      <div id="file-results"></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn" onclick="exportCSV()">↓ CSV</button>
+    <button class="btn" onclick="copyReport()">⎘ نسخ تقرير</button>
+  </div>
+</div>
+
+<!-- ══ TAB: HISTORY ══ -->
+<div id="tab-history" class="section">
+  <div class="card">
+    <div class="card-title">
+      السجل · History
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm" onclick="loadFromGAS()">↓ تحميل من Sheets</button>
+        <button class="btn btn-sm btn-danger" onclick="clearAllLocal()">حذف المحلي</button>
+      </div>
+    </div>
+    <div class="s-hdr"><span>التاريخ</span><span>المدقق</span><span>الفرع</span><span>الملفات</span><span>الاكتمال</span><span></span></div>
+    <div id="history-list"></div>
+  </div>
+</div>
+
+<!-- ══ TAB: COMPARE ══ -->
+<div id="tab-compare" class="section">
+  <div class="card">
+    <div class="card-title">اختر جلستين · Select 2 Sessions</div>
+    <div class="g2">
+      <div class="field"><label>الجلسة الأولى (أزرق)</label><select id="cmp1" onchange="renderCompare()"><option value="">—</option></select></div>
+      <div class="field"><label>الجلسة الثانية (أصفر)</label><select id="cmp2" onchange="renderCompare()"><option value="">—</option></select></div>
+    </div>
+  </div>
+  <div id="cmp-out"></div>
+</div>
+
+</div><!-- /shell -->
+
+<!-- GAS Modal -->
+<div class="modal-bg" id="gas-modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3>إعداد Google Apps Script</h3>
+    <p>أدخل رابط Web App بعد النشر من GAS</p>
+    <div class="field" style="margin-bottom:12px">
+      <label>GAS Web App URL</label>
+      <input type="text" id="gas-input" style="width:100%" placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal()">إلغاء</button>
+      <button class="btn btn-primary" onclick="testGAS()">حفظ واختبار</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// FIELDS DEFINITION
+// ══════════════════════════════════════════════
+var SECTIONS = [
+  {
+    id: 'basic',
+    ar: 'المعلومات الأساسية',
+    en: 'Basic Information',
+    fields: [
+      {id:'f1',  ar:'الاسم الرباعي بالعربي',   en:'Full name in Arabic (4 parts)'},
+      {id:'f2',  ar:'الاسم الرباعي بالإنجليزي', en:'Full name in English (4 parts)'},
+      {id:'f3',  ar:'العنوان الصحيح',            en:'Correct address'},
+      {id:'f4',  ar:'رقم الهوية الوطنية',        en:'National ID number'},
+      {id:'f5',  ar:'رقم الجوال',                en:'Mobile number'},
+      {id:'f6',  ar:'تاريخ الميلاد',             en:'Date of birth'},
+    ]
+  },
+  {
+    id: 'clinical',
+    ar: 'المعلومات الإكلينيكية',
+    en: 'Clinical Information',
+    fields: [
+      {id:'f7',  ar:'التاريخ المرضي',            en:'Medical history'},
+      {id:'f8',  ar:'الخطة العلاجية',            en:'Treatment plan'},
+      {id:'f9',  ar:'التثقيف الصحي',             en:'Health education'},
+      {id:'f10', ar:'نموذج السقوط معبّأ',        en:'Fall risk form completed'},
+      {id:'f11', ar:'نموذج التغذية معبّأ',       en:'Nutritional screening form completed'},
+    ]
+  }
+];
+
+// flatten all fields
+var ALL_FIELDS = [];
+SECTIONS.forEach(function(s){ s.fields.forEach(function(f){ ALL_FIELDS.push(f); }); });
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+var files   = ['','','','',''];
+var scores  = {};
+var sessions= [];
+var gasUrl  = '';
+
+window.addEventListener('load', function(){
+  document.getElementById('s-date').value = new Date().toISOString().slice(0,10);
+  loadLocal();
+  renderAll();
+});
+
+// ══════════════════════════════════════════════
+// LOCAL STORAGE
+// ══════════════════════════════════════════════
+function loadLocal(){
+  try{
+    var fi=localStorage.getItem('pfa_files'); if(fi) files=JSON.parse(fi);
+    var sc=localStorage.getItem('pfa_scores'); if(sc) scores=JSON.parse(sc);
+    var se=localStorage.getItem('pfa_sessions'); if(se) sessions=JSON.parse(se);
+    var gu=localStorage.getItem('pfa_gas'); if(gu){gasUrl=gu;setBadge(true);}
+    var me=localStorage.getItem('pfa_meta');
+    if(me){var m=JSON.parse(me);
+      if(m.date) document.getElementById('s-date').value=m.date;
+      if(m.auditor) document.getElementById('s-auditor').value=m.auditor;
+      if(m.branch) document.getElementById('s-branch').value=m.branch;
+      if(m.notes) document.getElementById('s-notes').value=m.notes;
+    }
+  }catch(e){}
+}
+
+function persist(){
+  localStorage.setItem('pfa_files',JSON.stringify(files));
+  localStorage.setItem('pfa_scores',JSON.stringify(scores));
+  localStorage.setItem('pfa_sessions',JSON.stringify(sessions));
+  var meta={
+    date:document.getElementById('s-date').value,
+    auditor:document.getElementById('s-auditor').value,
+    branch:document.getElementById('s-branch').value,
+    notes:document.getElementById('s-notes').value
+  };
+  localStorage.setItem('pfa_meta',JSON.stringify(meta));
+}
+
+function clearAllLocal(){
+  if(!confirm('حذف كل البيانات المحلية؟')) return;
+  localStorage.clear(); sessions=[]; renderHistory(); toast('تم الحذف');
+}
+
+// ══════════════════════════════════════════════
+// FILES
+// ══════════════════════════════════════════════
+function addFile(){ files.push(''); persist(); renderMRNs(); renderTable(); renderResults();}
+
+function renderMRNs(){
+  document.getElementById('mrn-inputs').innerHTML = files.map(function(f,i){
+    return '<div class="field"><label>ملف '+(i+1)+' / File '+(i+1)+'</label>'
+      +'<input type="text" value="'+f+'" placeholder="MRN #" oninput="files['+i+']=this.value;persist()">'
+      +'</div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// SCORES
+// ══════════════════════════════════════════════
+function setScore(fid, fi, val){
+  var key=fid+':'+fi;
+  scores[key] = scores[key]===val ? null : val;
+  persist();
+  renderTable();
+  renderResults();
+}
+function getScore(fid,fi){ return scores[fid+':'+fi]||null; }
+
+// ══════════════════════════════════════════════
+// TABLE
+// ══════════════════════════════════════════════
+function renderTable(){
+  var head = document.getElementById('tbl-head');
+  var body = document.getElementById('tbl-body');
+
+  // header row
+  var h='<tr><th class="field-th">الحقل / Field</th>';
+  files.forEach(function(f,i){ h+='<th>ملف '+(i+1)+'<br><span style="font-weight:400;opacity:.7;font-size:10px;font-family:var(--mono)">'+(f||'MRN?')+'</span></th>'; });
+  h+='<th>الاكتمال</th></tr>';
+  head.innerHTML=h;
+
+  var rows='';
+  SECTIONS.forEach(function(sec){
+    // section header row
+    rows+='<tr class="section-row"><td colspan="'+(files.length+2)+'" class="field-td">'+sec.ar+' · '+sec.en+'</td></tr>';
+    sec.fields.forEach(function(f){
+      var y=0,n=0,na=0;
+      files.forEach(function(_,i){ var v=getScore(f.id,i); if(v==='Y')y++; else if(v==='N')n++; else if(v==='NA')na++; });
+      var denom=files.length-na;
+      var pct=denom>0?Math.round(y/denom*100):null;
+      var pc=pctCls(pct);
+
+      var cells='';
+      files.forEach(function(_,i){
+        var v=getScore(f.id,i);
+        cells+='<td><div class="yna">'
+          +'<button class="yb Y '+(v==='Y'?'on':'')+'" onclick="setScore(\''+f.id+'\','+i+',\'Y\')">Y</button>'
+          +'<button class="yb N '+(v==='N'?'on':'')+'" onclick="setScore(\''+f.id+'\','+i+',\'N\')">N</button>'
+          +'<button class="yb NA '+(v==='NA'?'on':'')+'" onclick="setScore(\''+f.id+'\','+i+',\'NA\')">NA</button>'
+          +'</div></td>';
+      });
+
+      rows+='<tr>'
+        +'<td class="field-td"><div class="ar">'+f.ar+'</div><div class="en">'+f.en+'</div></td>'
+        +cells
+        +'<td><span class="pct '+pc+'">'+(pct===null?'—':pct+'%')+'</span></td>'
+        +'</tr>';
+    });
+  });
+  body.innerHTML=rows;
+}
+
+// ══════════════════════════════════════════════
+// RESULTS
+// ══════════════════════════════════════════════
+function calcField(fid){
+  var y=0,n=0,na=0;
+  files.forEach(function(_,i){ var v=getScore(fid,i); if(v==='Y')y++; else if(v==='N')n++; else if(v==='NA')na++; });
+  var d=files.length-na; return {y:y,n:n,na:na,pct:d>0?Math.round(y/d*100):null};
+}
+function calcFile(fi){
+  var y=0,n=0,na=0;
+  ALL_FIELDS.forEach(function(f){ var v=getScore(f.id,fi); if(v==='Y')y++; else if(v==='N')n++; else if(v==='NA')na++; });
+  var d=ALL_FIELDS.length-na; return {y:y,n:n,na:na,pct:d>0?Math.round(y/d*100):null};
+}
+function pctCls(p){ if(p===null)return 'nn'; if(p>=80)return 'hi'; if(p>=60)return 'mi'; return 'lo'; }
+function pctStr(p){ return p===null?'—':p+'%'; }
+function barColor(p){ return p>=80?'var(--green)':p>=60?'var(--amber)':'var(--red)'; }
+
+function renderResults(){
+  var ty=0,tn=0,tna=0;
+  ALL_FIELDS.forEach(function(f){ var r=calcField(f.id); ty+=r.y;tn+=r.n;tna+=r.na; });
+  var overall=ty+tn>0?Math.round(ty/(ty+tn)*100):0;
+
+  // KPIs
+  document.getElementById('kpis').innerHTML=
+    '<div class="kpi dark"><div class="kpi-v">'+overall+'%</div><div class="kpi-l">اكتمال الملفات<br>Overall Completeness</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+ALL_FIELDS.length+'</div><div class="kpi-l">الحقول<br>Fields</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+files.length+'</div><div class="kpi-l">الملفات<br>Files</div></div>'
+    +'<div class="kpi"><div class="kpi-v" style="color:var(--green)">'+ty+'</div><div class="kpi-l">مكتمل<br>Complete</div></div>'
+    +'<div class="kpi"><div class="kpi-v" style="color:var(--red)">'+tn+'</div><div class="kpi-l">ناقص<br>Incomplete</div></div>'
+    +'<div class="kpi"><div class="kpi-v" style="color:var(--muted)">'+tna+'</div><div class="kpi-l">لا ينطبق<br>N/A</div></div>';
+
+  // Per field
+  var fr='';
+  SECTIONS.forEach(function(sec){
+    fr+='<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border)">'+sec.ar+'</div>';
+    sec.fields.forEach(function(f){
+      var r=calcField(f.id); var p=r.pct||0;
+      fr+='<div style="margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'
+        +'<span style="font-size:12px">'+f.ar+'</span>'
+        +'<span class="pct '+pctCls(r.pct)+'">'+pctStr(r.pct)+'</span></div>'
+        +'<div class="bar-wrap"><div class="bar-fill" style="width:'+p+'%;background:'+barColor(p)+'"></div></div>'
+        +'</div>';
+    });
+  });
+  document.getElementById('field-results').innerHTML=fr;
+
+  // Per file
+  var ff='';
+  files.forEach(function(f,i){
+    var r=calcFile(i); var p=r.pct||0;
+    ff+='<div style="margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'
+      +'<span style="font-size:12px">ملف '+(i+1)+(f?' / '+f:'')+'</span>'
+      +'<span class="pct '+pctCls(r.pct)+'">'+pctStr(r.pct)+'</span></div>'
+      +'<div class="bar-wrap"><div class="bar-fill" style="width:'+p+'%;background:'+barColor(p)+'"></div></div>'
+      +'</div>';
+  });
+  document.getElementById('file-results').innerHTML=ff;
+}
+
+// ══════════════════════════════════════════════
+// SESSION
+// ══════════════════════════════════════════════
+function buildSession(){
+  var ty=0,tn=0;
+  ALL_FIELDS.forEach(function(f){ files.forEach(function(_,i){ var v=getScore(f.id,i); if(v==='Y')ty++; else if(v==='N')tn++; }); });
+  return {
+    id:'PFA-'+Date.now(),
+    date:document.getElementById('s-date').value,
+    auditor:document.getElementById('s-auditor').value,
+    branch:document.getElementById('s-branch').value,
+    notes:document.getElementById('s-notes').value,
+    files:files.map(function(mrn){ return {mrn:mrn}; }),
+    scores:JSON.parse(JSON.stringify(scores)),
+    overall:ty+tn>0?Math.round(ty/(ty+tn)*100):0
+  };
+}
+
+function saveLocal(){
+  var s=buildSession();
+  sessions.unshift(s);
+  if(sessions.length>50) sessions.pop();
+  persist();
+  renderHistory();
+  toast('✓ تم الحفظ محلياً');
+}
+
+async function saveGAS(){
+  if(!gasUrl){showModal();return;}
+  var s=buildSession();
+  try{
+    var r=await gasJsonp({action:'saveSession', payload:JSON.stringify(s)});
+    if(r.ok){ sessions.unshift(Object.assign({},s,{synced:true})); persist(); renderHistory(); toast('✓ تم الحفظ في Sheets'); }
+    else toast('خطأ: '+r.error);
+  }catch(e){ toast('فشل الاتصال'); }
+}
+
+function clearSession(){
+  if(!confirm('مسح بيانات الجلسة؟')) return;
+  scores={}; files=['','','','','']; persist(); renderAll(); toast('تم المسح');
+}
+
+// ══════════════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════════════
+function renderHistory(){
+  var el=document.getElementById('history-list');
+  if(!sessions.length){ el.innerHTML='<div class="empty">لا توجد جلسات محفوظة</div>'; return; }
+  el.innerHTML=sessions.map(function(s,i){
+    return '<div class="s-row">'
+      +'<span>'+( s.date||'—')+'</span>'
+      +'<span>'+(s.auditor||'—')+'</span>'
+      +'<span>'+(s.branch||'—')+'</span>'
+      +'<span>'+(s.files?s.files.length:0)+' ملف</span>'
+      +'<span class="pct '+(s.overall!==undefined?pctCls(s.overall):'nn')+'">'+pctStr(s.overall)+'</span>'
+      +'<button class="btn btn-sm" onclick="loadSession('+i+')">تحميل</button>'
+      +'</div>';
+  }).join('');
+
+  // compare dropdowns
+  var opts='<option value="">—</option>'+sessions.map(function(s,i){
+    return '<option value="'+i+'">'+(s.date||'?')+' · '+(s.branch||'?')+' ('+pctStr(s.overall)+')</option>';
+  }).join('');
+  document.getElementById('cmp1').innerHTML=opts;
+  document.getElementById('cmp2').innerHTML=opts;
+}
+
+function loadSession(idx){
+  var s=sessions[idx]; if(!s)return;
+  files=s.files.map(function(f){return f.mrn||'';});
+  scores=JSON.parse(JSON.stringify(s.scores||{}));
+  document.getElementById('s-date').value=s.date||'';
+  document.getElementById('s-auditor').value=s.auditor||'';
+  document.getElementById('s-branch').value=s.branch||'';
+  document.getElementById('s-notes').value=s.notes||'';
+  persist(); renderAll(); goTab('audit'); toast('✓ تم تحميل الجلسة');
+}
+
+async function loadFromGAS(){
+  if(!gasUrl){showModal();return;}
+  try{
+    var r=await gasJsonp({action:'getSessions'});
+    if(r.ok&&r.sessions){ toast('✓ تم التحميل — '+r.sessions.length+' جلسة'); renderHistory(); }
+    else toast('لا توجد بيانات');
+  }catch(e){ toast('فشل الاتصال'); }
+}
+
+// ══════════════════════════════════════════════
+// COMPARE
+// ══════════════════════════════════════════════
+function renderCompare(){
+  var i1=document.getElementById('cmp1').value;
+  var i2=document.getElementById('cmp2').value;
+  var el=document.getElementById('cmp-out');
+  if(i1===''||i2===''||i1===i2){ el.innerHTML='<div class="empty">اختر جلستين مختلفتين</div>'; return; }
+  var s1=sessions[i1], s2=sessions[i2]; if(!s1||!s2)return;
+
+  function sessFieldPct(sess, fid){
+    var y=0,n=0,na=0;
+    (sess.files||[]).forEach(function(_,fi){
+      var v=(sess.scores||{})[fid+':'+fi];
+      if(v==='Y')y++; else if(v==='N')n++; else if(v==='NA')na++;
+    });
+    var d=(sess.files?sess.files.length:5)-na;
+    return d>0?Math.round(y/d*100):null;
+  }
+
+  var diff=((s2.overall||0)-(s1.overall||0));
+  var diffColor=diff>0?'var(--green)':diff<0?'var(--red)':'var(--muted)';
+
+  var html='<div class="card">'
+    +'<div style="display:flex;gap:1.5rem;margin-bottom:1rem;font-size:13px">'
+    +'<span><span style="display:inline-block;width:12px;height:12px;background:var(--accent2);border-radius:2px;margin-left:6px;vertical-align:middle"></span>'+(s1.date||'?')+' · '+(s1.branch||'?')+' · '+pctStr(s1.overall)+'</span>'
+    +'<span><span style="display:inline-block;width:12px;height:12px;background:#f59e0b;border-radius:2px;margin-left:6px;vertical-align:middle"></span>'+(s2.date||'?')+' · '+(s2.branch||'?')+' · '+pctStr(s2.overall)+'</span>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:6px">'
+    +'<span style="font-size:13px;font-weight:500">الاكتمال الكلي</span>'
+    +'<span class="pct" style="color:'+diffColor+'">'+(diff>0?'+':'')+diff+'%</span></div>'
+    +'<div class="bar-wrap" style="height:8px"><div class="bar-fill" style="width:'+(s1.overall||0)+'%;height:8px;background:var(--accent2)"></div></div>'
+    +'<div class="bar-wrap" style="height:8px;margin-top:4px"><div class="bar-fill" style="width:'+(s2.overall||0)+'%;height:8px;background:#f59e0b"></div></div>'
+    +'<hr class="divider">';
+
+  SECTIONS.forEach(function(sec){
+    html+='<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 6px">'+sec.ar+'</div>';
+    sec.fields.forEach(function(f){
+      var p1=sessFieldPct(s1,f.id)||0;
+      var p2=sessFieldPct(s2,f.id)||0;
+      var d=p2-p1;
+      var dc=d>0?'var(--green)':d<0?'var(--red)':'var(--muted)';
+      html+='<div class="cmp-row">'
+        +'<span class="cmp-lbl">'+f.ar+'</span>'
+        +'<div class="cmp-bars">'
+        +'<div class="cmp-bar" style="width:'+p1+'%;background:var(--accent2)"></div>'
+        +'<div class="cmp-bar" style="width:'+p2+'%;background:#f59e0b"></div>'
+        +'</div>'
+        +'<span class="pct" style="width:50px;font-size:11px;color:'+dc+'">'+(d>0?'+':'')+d+'%</span>'
+        +'</div>';
+    });
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+// ══════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════
+function exportCSV(){
+  var csv='Field (AR),Field (EN),';
+  files.forEach(function(f,i){ csv+='File '+(i+1)+' ('+(f||'MRN?')+'),'; });
+  csv+='Completeness%\n';
+  ALL_FIELDS.forEach(function(f){
+    var r=calcField(f.id);
+    csv+='"'+f.ar+'","'+f.en+'",';
+    files.forEach(function(_,i){ csv+=(getScore(f.id,i)||'')+','; });
+    csv+=pctStr(r.pct)+'\n';
+  });
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='patient_file_audit_'+(document.getElementById('s-date').value||'report')+'.csv';
+  a.click(); toast('✓ تم التصدير');
+}
+
+function copyReport(){
+  var d=document.getElementById('s-date').value;
+  var b=document.getElementById('s-branch').value;
+  var a=document.getElementById('s-auditor').value;
+  var rep='تقرير اكتمال ملف المريض\n'+'═'.repeat(38)+'\n';
+  rep+='التاريخ: '+d+' | الفرع: '+b+' | المدقق: '+a+'\n\n';
+  SECTIONS.forEach(function(sec){
+    rep+=sec.ar+'\n'+'─'.repeat(30)+'\n';
+    sec.fields.forEach(function(f){
+      var r=calcField(f.id);
+      rep+=f.ar+' → '+pctStr(r.pct)+' (Y:'+r.y+' N:'+r.n+' NA:'+r.na+')\n';
+    });
+    rep+='\n';
+  });
+  var ty=0,tn=0;
+  ALL_FIELDS.forEach(function(f){var r=calcField(f.id);ty+=r.y;tn+=r.n;});
+  rep+='الاكتمال الكلي: '+(ty+tn>0?Math.round(ty/(ty+tn)*100)+'%':'—');
+  navigator.clipboard.writeText(rep).catch(function(){});
+  toast('✓ تم النسخ');
+}
+
+// ══════════════════════════════════════════════
+// GAS JSONP
+// ══════════════════════════════════════════════
+function gasJsonp(params){
+  return new Promise(function(resolve,reject){
+    var cb='pfa_cb_'+Date.now();
+    params.callback=cb;
+    var qs=Object.entries(params).map(function(e){ return e[0]+'='+encodeURIComponent(e[1]); }).join('&');
+    var sc=document.createElement('script');
+    sc.src=gasUrl+'?'+qs;
+    window[cb]=function(data){ delete window[cb]; if(sc.parentNode)document.body.removeChild(sc); resolve(data); };
+    sc.onerror=function(){ reject(new Error('JSONP failed')); };
+    setTimeout(function(){ if(window[cb]){delete window[cb];reject(new Error('Timeout'));} },15000);
+    document.body.appendChild(sc);
+  });
+}
+
+// ══════════════════════════════════════════════
+// GAS MODAL
+// ══════════════════════════════════════════════
+function showModal(){ document.getElementById('gas-input').value=gasUrl; document.getElementById('gas-modal').style.display='flex'; }
+function closeModal(){ document.getElementById('gas-modal').style.display='none'; }
+
+async function testGAS(){
+  var url=document.getElementById('gas-input').value.trim(); if(!url)return;
+  gasUrl=url; localStorage.setItem('pfa_gas',gasUrl); closeModal(); toast('جاري الاختبار...');
+  try{
+    var r=await gasJsonp({action:'init'});
+    if(r.ok){ setBadge(true); toast('✓ متصل — '+r.name); }
+    else { setBadge(false); toast('خطأ: '+r.error); }
+  }catch(e){ setBadge(false); toast('فشل الاتصال'); }
+}
+
+function setBadge(ok){
+  var el=document.getElementById('gas-badge');
+  el.textContent=ok?'● متصل':'● غير متصل';
+  el.className='gas-badge'+(ok?' on':'');
+}
+
+// ══════════════════════════════════════════════
+// RENDER ALL & TABS
+// ══════════════════════════════════════════════
+function renderAll(){ renderMRNs(); renderTable(); renderResults(); renderHistory(); }
+
+function goTab(name){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
+  var map={audit:0,results:1,history:2,compare:3};
+  document.querySelectorAll('.tab')[map[name]].classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='results') renderResults();
+  if(name==='compare') renderCompare();
+}
+
+function toast(msg){
+  var el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(function(){el.classList.remove('show');},2800);
+}
+</script>
+</body>
+</html>
