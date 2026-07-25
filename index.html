@@ -156,7 +156,7 @@ textarea{height:auto;padding:8px 10px;resize:vertical}
     <div class="ctitle">أرقام الملفات · MRN Numbers
       <button class="btn btn-sm" id="btn-add-file">+ ملف جديد</button>
     </div>
-    <div class="g4" id="mrn-grid"></div>
+    <div id="mrn-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px"></div>
   </div>
 
   <div class="card" style="padding:0;overflow:hidden">
@@ -296,7 +296,7 @@ var ALL_FIELDS = [];
 SECTIONS.forEach(function(s){ s.fields.forEach(function(f){ ALL_FIELDS.push(f); }); });
 
 // ── State ──
-var files        = ['','','','',''];
+var files        = [{mrn:'',doctor:'',dept:''},{mrn:'',doctor:'',dept:''},{mrn:'',doctor:'',dept:''},{mrn:'',doctor:'',dept:''},{mrn:'',doctor:'',dept:''}];
 var scores       = {};
 var sessions     = [];
 var cbahiSel     = {};
@@ -388,7 +388,11 @@ function goTab(name) {
 // ══════════════════════════════════════════════
 function loadLocal() {
   try {
-    var fi = localStorage.getItem('pfa_files');   if (fi) files    = JSON.parse(fi);
+    var fi = localStorage.getItem('pfa_files');
+    if (fi) {
+      var pf = JSON.parse(fi);
+      files = pf.map(function(f){ return typeof f==='string' ? {mrn:f,doctor:'',dept:''} : (f||{mrn:'',doctor:'',dept:''}); });
+    }
     var sc = localStorage.getItem('pfa_scores');  if (sc) scores   = JSON.parse(sc);
     var se = localStorage.getItem('pfa_sessions');if (se) sessions = JSON.parse(se);
     var gu = localStorage.getItem('pfa_gas');     if (gu) { gasUrl = gu; setBadge(true); }
@@ -424,7 +428,7 @@ function clearAllLocal() {
 // FILES
 // ══════════════════════════════════════════════
 function addFile() {
-  files.push('');
+  files.push({mrn:'',doctor:'',dept:''});
   persist();
   renderMRNs();
   renderTable();
@@ -434,22 +438,29 @@ function addFile() {
 function renderMRNs() {
   var html = '';
   files.forEach(function(f, i) {
-    html += '<div class="field">'
-      + '<label>ملف '+(i+1)+' / File '+(i+1)+'</label>'
-      + '<input type="text" value="'+f+'" placeholder="MRN #" data-mrn-idx="'+i+'">'
+    var fo = (typeof f === 'object' && f) ? f : {mrn:f||'',doctor:'',dept:''};
+    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:10px 12px;display:flex;flex-direction:column;gap:6px">'
+      + '<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:2px">ملف '+(i+1)+' / File '+(i+1)+'</div>'
+      + '<div class="field"><label>رقم الملف / MRN</label>'
+        + '<input type="text" value="'+(fo.mrn||'')+'" placeholder="MRN #" data-field="mrn" data-fi="'+i+'"></div>'
+      + '<div class="field"><label>اسم الطبيب / Doctor</label>'
+        + '<input type="text" value="'+(fo.doctor||'')+'" placeholder="د. الاسم" data-field="doctor" data-fi="'+i+'"></div>'
+      + '<div class="field"><label>القسم / Dept</label>'
+        + '<input type="text" value="'+(fo.dept||'')+'" placeholder="قسم الأسنان..." data-field="dept" data-fi="'+i+'"></div>'
       + '</div>';
   });
   var grid = document.getElementById('mrn-grid');
   grid.innerHTML = html;
-  // Bind MRN inputs
-  grid.querySelectorAll('input[data-mrn-idx]').forEach(function(inp) {
+  grid.querySelectorAll('input[data-fi]').forEach(function(inp) {
     inp.addEventListener('input', function() {
-      files[parseInt(this.getAttribute('data-mrn-idx'))] = this.value;
+      var fi    = parseInt(this.getAttribute('data-fi'));
+      var field = this.getAttribute('data-field');
+      if (!files[fi] || typeof files[fi] !== 'object') files[fi] = {mrn:'',doctor:'',dept:''};
+      files[fi][field] = this.value;
       persist();
     });
   });
 }
-
 // ══════════════════════════════════════════════
 // SCORES
 // ══════════════════════════════════════════════
@@ -476,7 +487,11 @@ function renderTable() {
   // Header
   var h = '<tr><th class="fth">الحقل / Field</th>';
   files.forEach(function(f, i) {
-    h += '<th>ملف '+(i+1)+'<br><span style="font-weight:400;opacity:.7;font-size:10px;font-family:var(--mono)">'+(f||'MRN?')+'</span></th>';
+    var fo=files[i]||{};
+    h += '<th>ملف '+(i+1)+'<br>'
+      +'<span style="font-weight:400;opacity:.7;font-size:10px;font-family:var(--mono)">'+(fo.mrn||'MRN?')+'</span>'
+      +(fo.doctor?'<br><span style="font-weight:400;opacity:.6;font-size:9px">د.'+fo.doctor+(fo.dept?' · '+fo.dept:'')+'</span>':'')
+      +'</th>';
   });
   h += '<th>الاكتمال</th></tr>';
   document.getElementById('thead').innerHTML = h;
@@ -566,9 +581,10 @@ function renderResults() {
   var ff = '';
   files.forEach(function(f, i) {
     var r=calcFile(i); var p=r.pct||0;
+    var fo2=files[i]||{};
     ff += '<div style="margin-bottom:10px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'
-      +'<span style="font-size:12px">ملف '+(i+1)+(f?' / '+f:'')+'</span>'
+      +'<span style="font-size:12px">ملف '+(i+1)+(fo2.mrn?' / '+fo2.mrn:'')+(fo2.doctor?' · د.'+fo2.doctor:'')+(fo2.dept?' ('+fo2.dept+')':'')+'</span>'
       +'<span class="pct '+pctCls(r.pct)+'">'+pctStr(r.pct)+'</span></div>'
       +'<div class="bw"><div class="bf" style="width:'+p+'%;background:'+bColor(p)+'"></div></div>'
       +'</div>';
@@ -590,7 +606,7 @@ function buildSession() {
     auditor: document.getElementById('s-auditor').value,
     branch:  document.getElementById('s-branch').value,
     notes:   document.getElementById('s-notes').value,
-    files:   files.map(function(mrn){ return {mrn:mrn}; }),
+    files:   files.map(function(f){ return {mrn:(f&&f.mrn)||'',doctor:(f&&f.doctor)||'',dept:(f&&f.dept)||''}; }),
     scores:  JSON.parse(JSON.stringify(scores)),
     overall: ty+tn>0?Math.round(ty/(ty+tn)*100):0
   };
@@ -646,7 +662,7 @@ function renderHistory() {
 
 function loadSession(idx) {
   var s = sessions[idx]; if (!s) return;
-  files  = s.files.map(function(f){ return f.mrn||''; });
+  files  = s.files.map(function(f){ return {mrn:f.mrn||'',doctor:f.doctor||'',dept:f.dept||''}; });
   scores = JSON.parse(JSON.stringify(s.scores||{}));
   document.getElementById('s-date').value    = s.date||'';
   document.getElementById('s-auditor').value = s.auditor||'';
@@ -723,6 +739,8 @@ function renderCbahiTab() {
   var html = '<table class="tbl"><thead><tr>'
     +'<th style="width:48px">اختيار</th>'
     +'<th class="fth">رقم الملف / MRN</th>'
+    +'<th>الطبيب</th>'
+    +'<th>القسم</th>'
     +'<th>الاكتمال</th>'
     +'<th>الحقول الناقصة</th>'
     +'<th>الحالة</th>'
@@ -734,6 +752,7 @@ function renderCbahiTab() {
     var p = r.pct || 0;
     if (p < threshold) return;
     any = true;
+    var fo = (typeof files[i]==='object'&&files[i]) ? files[i] : {mrn:files[i]||'',doctor:'',dept:''};
 
     var missing = [];
     ALL_FIELDS.forEach(function(f) {
@@ -747,7 +766,10 @@ function renderCbahiTab() {
 
     html += '<tr>'
       +'<td><input type="checkbox" '+chk+' data-fi="'+i+'" style="width:18px;height:18px;cursor:pointer"></td>'
-      +'<td class="ftd"><strong>'+(mrn||'ملف '+(i+1))+'</strong><div style="font-size:11px;color:var(--muted)">ملف '+(i+1)+'</div></td>'
+      +'<td class="ftd"><strong>'+(fo.mrn||'ملف '+(i+1))+'</strong>'
+        +'<div style="font-size:11px;color:var(--muted)">'+(fo.doctor?'د. '+fo.doctor:'')+(fo.dept?' · '+fo.dept:'')+'</div></td>'
+      +'<td style="font-size:12px">'+(fo.doctor?'د. '+fo.doctor:'—')+'</td>'
+      +'<td style="font-size:12px">'+(fo.dept||'—')+'</td>'
       +'<td><span class="pct '+pctCls(r.pct)+'">'+pctStr(r.pct)+'</span>'
         +'<div class="bw" style="width:80px;margin-top:4px"><div class="bf" style="width:'+p+'%;background:'+bColor(p)+'"></div></div></td>'
       +'<td style="font-size:11px;color:var(--red);text-align:right">'+(missing.length?missing.join('، '):'<span style="color:var(--green)">لا توجد ✓</span>')+'</td>'
@@ -774,13 +796,15 @@ function renderCbahiSummary() {
     +'<div class="kpi" style="flex:1"><div class="kv" style="font-size:22px;color:var(--green)">'+avgPct+'%</div><div class="kl">متوسط الاكتمال</div></div>'
     +'</div>'
     +'<table class="tbl"><thead><tr>'
-    +'<th>#</th><th class="fth">MRN</th><th>الاكتمال</th><th>زيارة CBAHI</th><th>الحقول الناقصة</th>'
+    +'<th>#</th><th class="fth">MRN</th><th>الطبيب</th><th>القسم</th><th>الاكتمال</th><th>زيارة CBAHI</th><th>الحقول الناقصة</th>'
     +'</tr></thead><tbody>';
 
   samples.forEach(function(s,i){
     html += '<tr>'
       +'<td style="font-family:var(--mono);font-size:12px">'+(i+1)+'</td>'
       +'<td class="ftd"><strong>'+s.mrn+'</strong></td>'
+      +'<td style="font-size:12px">'+(s.doctor?'د. '+s.doctor:'—')+'</td>'
+      +'<td style="font-size:12px">'+(s.dept||'—')+'</td>'
       +'<td><span class="pct '+pctCls(s.pct)+'">'+s.pct+'%</span></td>'
       +'<td style="font-size:12px">'+s.visit+'</td>'
       +'<td style="font-size:11px;color:var(--red);text-align:right">'+(s.missing.length?s.missing.join('، '):'<span style="color:var(--green)">مكتمل ✓</span>')+'</td>'
@@ -797,8 +821,9 @@ function getSelectedSamples() {
     var r = calcFile(i);
     var missing = [];
     ALL_FIELDS.forEach(function(f){ var v=getScore(f.id,i); if(v==='N'||!v) missing.push(f.ar); });
+    var fo3=files[i]||{};
     samples.push({
-      fileIdx:i, mrn:mrn||('ملف '+(i+1)), pct:r.pct||0, missing:missing,
+      fileIdx:i, mrn:fo3.mrn||('ملف '+(i+1)), doctor:fo3.doctor||'', dept:fo3.dept||'', pct:r.pct||0, missing:missing,
       date:    document.getElementById('s-date').value,
       auditor: document.getElementById('s-auditor').value,
       branch:  document.getElementById('s-branch').value,
@@ -819,9 +844,9 @@ function deselectAll() { cbahiSel={}; renderCbahiTab(); }
 function exportCbahiCSV() {
   var samples = getSelectedSamples();
   if (!samples.length) { toast('اختر ملفات أولاً'); return; }
-  var csv = '#,MRN,الاكتمال%,زيارة CBAHI,الفرع,المدقق,التاريخ,الحقول الناقصة\n';
+  var csv = '#,MRN,الطبيب,القسم,الاكتمال%,زيارة CBAHI,الفرع,المدقق,التاريخ,الحقول الناقصة\n';
   samples.forEach(function(s,i){
-    csv += (i+1)+',"'+s.mrn+'",'+s.pct+'%,"'+s.visit+'","'+s.branch+'","'+s.auditor+'",'+s.date+',"'+s.missing.join(' | ')+'"\n';
+    csv += (i+1)+',"'+s.mrn+'","'+(s.doctor||'')+'","'+(s.dept||'')+'",'+s.pct+'%,"'+s.visit+'","'+s.branch+'","'+s.auditor+'",'+s.date+',"'+s.missing.join(' | ')+'"\n';
   });
   var a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
