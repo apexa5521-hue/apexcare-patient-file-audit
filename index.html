@@ -230,6 +230,10 @@ textarea{height:auto;padding:8px 10px;resize:vertical}
         <label>اسم زيارة CBAHI / Visit label</label>
         <input type="text" id="cbahi-visit" placeholder="زيارة CBAHI مارس 2026">
       </div>
+      <div class="field">
+        <label>تاريخ زيارة CBAHI / Visit Date</label>
+        <input type="date" id="cbahi-visit-date" onchange="renderCbahiTab()">
+      </div>
       <div class="field" style="justify-content:flex-end">
         <label>&nbsp;</label>
         <div style="display:flex;gap:8px">
@@ -243,6 +247,10 @@ textarea{height:auto;padding:8px 10px;resize:vertical}
   <div class="card" id="cbahi-summary" style="display:none">
     <div class="sec">الملفات المختارة كعينات CBAHI</div>
     <div id="cbahi-selected"></div>
+  </div>
+  <div class="card" id="cbahi-coverage" style="display:none">
+    <div class="sec">تغطية الأشهر لكل طبيب · Monthly Coverage per Doctor</div>
+    <div id="coverage-grid"></div>
   </div>
   <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
     <button class="btn" id="btn-cbahi-csv">↓ تصدير العينات CSV</button>
@@ -296,7 +304,7 @@ var ALL_FIELDS = [];
 SECTIONS.forEach(function(s){ s.fields.forEach(function(f){ ALL_FIELDS.push(f); }); });
 
 // ── State ──
-var files        = [{mrn:'',doctor:'',dept:''},{mrn:'',doctor:'',dept:''},{mrn:'',doctor:'',dept:''},{mrn:'',doctor:'',dept:''},{mrn:'',doctor:'',dept:''}];
+var files        = [{mrn:'',doctor:'',dept:'',appt:''},{mrn:'',doctor:'',dept:'',appt:''},{mrn:'',doctor:'',dept:'',appt:''},{mrn:'',doctor:'',dept:'',appt:''},{mrn:'',doctor:'',dept:'',appt:''}];
 var scores       = {};
 var sessions     = [];
 var cbahiSel     = {};
@@ -341,6 +349,7 @@ function bindEvents() {
     if (e.target === this) closeModal();
   });
   document.getElementById('cbahi-threshold').addEventListener('change', renderCbahiTab);
+  document.getElementById('cbahi-visit-date').addEventListener('change', function(){ renderCbahiTab(); renderCoverageCheck(); });
   document.getElementById('cmp1').addEventListener('change', function(){});
   document.getElementById('cmp2').addEventListener('change', function(){});
 
@@ -391,7 +400,7 @@ function loadLocal() {
     var fi = localStorage.getItem('pfa_files');
     if (fi) {
       var pf = JSON.parse(fi);
-      files = pf.map(function(f){ return typeof f==='string' ? {mrn:f,doctor:'',dept:''} : (f||{mrn:'',doctor:'',dept:''}); });
+      files = pf.map(function(f){ return typeof f==='string' ? {mrn:f,doctor:'',dept:'',appt:''} : Object.assign({mrn:'',doctor:'',dept:'',appt:''},f); });
     }
     var sc = localStorage.getItem('pfa_scores');  if (sc) scores   = JSON.parse(sc);
     var se = localStorage.getItem('pfa_sessions');if (se) sessions = JSON.parse(se);
@@ -428,7 +437,7 @@ function clearAllLocal() {
 // FILES
 // ══════════════════════════════════════════════
 function addFile() {
-  files.push({mrn:'',doctor:'',dept:''});
+  files.push({mrn:'',doctor:'',dept:'',appt:''});
   persist();
   renderMRNs();
   renderTable();
@@ -438,7 +447,7 @@ function addFile() {
 function renderMRNs() {
   var html = '';
   files.forEach(function(f, i) {
-    var fo = (typeof f === 'object' && f) ? f : {mrn:f||'',doctor:'',dept:''};
+    var fo = (typeof f === 'object' && f) ? f : {mrn:f||'',doctor:'',dept:'',appt:''};
     html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:10px 12px;display:flex;flex-direction:column;gap:6px">'
       + '<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:2px">ملف '+(i+1)+' / File '+(i+1)+'</div>'
       + '<div class="field"><label>رقم الملف / MRN</label>'
@@ -447,6 +456,8 @@ function renderMRNs() {
         + '<input type="text" value="'+(fo.doctor||'')+'" placeholder="د. الاسم" data-field="doctor" data-fi="'+i+'"></div>'
       + '<div class="field"><label>القسم / Dept</label>'
         + '<input type="text" value="'+(fo.dept||'')+'" placeholder="قسم الأسنان..." data-field="dept" data-fi="'+i+'"></div>'
+      + '<div class="field"><label>تاريخ الموعد / Appt Date</label>'
+        + '<input type="date" value="'+(fo.appt||'')+'" data-field="appt" data-fi="'+i+'"></div>'
       + '</div>';
   });
   var grid = document.getElementById('mrn-grid');
@@ -455,7 +466,7 @@ function renderMRNs() {
     inp.addEventListener('input', function() {
       var fi    = parseInt(this.getAttribute('data-fi'));
       var field = this.getAttribute('data-field');
-      if (!files[fi] || typeof files[fi] !== 'object') files[fi] = {mrn:'',doctor:'',dept:''};
+      if (!files[fi] || typeof files[fi] !== 'object') files[fi] = {mrn:'',doctor:'',dept:'',appt:''};
       files[fi][field] = this.value;
       persist();
     });
@@ -606,7 +617,7 @@ function buildSession() {
     auditor: document.getElementById('s-auditor').value,
     branch:  document.getElementById('s-branch').value,
     notes:   document.getElementById('s-notes').value,
-    files:   files.map(function(f){ return {mrn:(f&&f.mrn)||'',doctor:(f&&f.doctor)||'',dept:(f&&f.dept)||''}; }),
+    files:   files.map(function(f){ return {mrn:(f&&f.mrn)||'',doctor:(f&&f.doctor)||'',dept:(f&&f.dept)||'',appt:(f&&f.appt)||''}; }),
     scores:  JSON.parse(JSON.stringify(scores)),
     overall: ty+tn>0?Math.round(ty/(ty+tn)*100):0
   };
@@ -662,7 +673,7 @@ function renderHistory() {
 
 function loadSession(idx) {
   var s = sessions[idx]; if (!s) return;
-  files  = s.files.map(function(f){ return {mrn:f.mrn||'',doctor:f.doctor||'',dept:f.dept||''}; });
+  files  = s.files.map(function(f){ return {mrn:f.mrn||'',doctor:f.doctor||'',dept:f.dept||'',appt:f.appt||''}; });
   scores = JSON.parse(JSON.stringify(s.scores||{}));
   document.getElementById('s-date').value    = s.date||'';
   document.getElementById('s-auditor').value = s.auditor||'';
@@ -741,6 +752,8 @@ function renderCbahiTab() {
     +'<th class="fth">رقم الملف / MRN</th>'
     +'<th>الطبيب</th>'
     +'<th>القسم</th>'
+    +'<th>تاريخ الموعد</th>'
+    +'<th>الشهر</th>'
     +'<th>الاكتمال</th>'
     +'<th>الحقول الناقصة</th>'
     +'<th>الحالة</th>'
@@ -770,6 +783,8 @@ function renderCbahiTab() {
         +'<div style="font-size:11px;color:var(--muted)">'+(fo.doctor?'د. '+fo.doctor:'')+(fo.dept?' · '+fo.dept:'')+'</div></td>'
       +'<td style="font-size:12px">'+(fo.doctor?'د. '+fo.doctor:'—')+'</td>'
       +'<td style="font-size:12px">'+(fo.dept||'—')+'</td>'
+      +'<td style="font-size:12px;font-family:var(--mono)">'+(fo.appt||'—')+'</td>'
+      +'<td style="font-size:12px;font-weight:600;color:var(--accent2)">'+(fo.appt?monthLabel(fo.appt):'—')+'</td>'
       +'<td><span class="pct '+pctCls(r.pct)+'">'+pctStr(r.pct)+'</span>'
         +'<div class="bw" style="width:80px;margin-top:4px"><div class="bf" style="width:'+p+'%;background:'+bColor(p)+'"></div></div></td>'
       +'<td style="font-size:11px;color:var(--red);text-align:right">'+(missing.length?missing.join('، '):'<span style="color:var(--green)">لا توجد ✓</span>')+'</td>'
@@ -796,7 +811,7 @@ function renderCbahiSummary() {
     +'<div class="kpi" style="flex:1"><div class="kv" style="font-size:22px;color:var(--green)">'+avgPct+'%</div><div class="kl">متوسط الاكتمال</div></div>'
     +'</div>'
     +'<table class="tbl"><thead><tr>'
-    +'<th>#</th><th class="fth">MRN</th><th>الطبيب</th><th>القسم</th><th>الاكتمال</th><th>زيارة CBAHI</th><th>الحقول الناقصة</th>'
+    +'<th>#</th><th class="fth">MRN</th><th>الطبيب</th><th>القسم</th><th>تاريخ الموعد</th><th>الشهر</th><th>الاكتمال</th><th>زيارة CBAHI</th><th>الحقول الناقصة</th>'
     +'</tr></thead><tbody>';
 
   samples.forEach(function(s,i){
@@ -805,6 +820,8 @@ function renderCbahiSummary() {
       +'<td class="ftd"><strong>'+s.mrn+'</strong></td>'
       +'<td style="font-size:12px">'+(s.doctor?'د. '+s.doctor:'—')+'</td>'
       +'<td style="font-size:12px">'+(s.dept||'—')+'</td>'
+      +'<td style="font-size:12px;font-family:var(--mono)">'+(s.appt||'—')+'</td>'
+      +'<td style="font-size:12px;font-weight:600;color:var(--accent2)">'+(s.appt?monthLabel(s.appt):'—')+'</td>'
       +'<td><span class="pct '+pctCls(s.pct)+'">'+s.pct+'%</span></td>'
       +'<td style="font-size:12px">'+s.visit+'</td>'
       +'<td style="font-size:11px;color:var(--red);text-align:right">'+(s.missing.length?s.missing.join('، '):'<span style="color:var(--green)">مكتمل ✓</span>')+'</td>'
@@ -812,6 +829,7 @@ function renderCbahiSummary() {
   });
   html += '</tbody></table>';
   list.innerHTML = html;
+  renderCoverageCheck();
 }
 
 function getSelectedSamples() {
@@ -823,7 +841,7 @@ function getSelectedSamples() {
     ALL_FIELDS.forEach(function(f){ var v=getScore(f.id,i); if(v==='N'||!v) missing.push(f.ar); });
     var fo3=files[i]||{};
     samples.push({
-      fileIdx:i, mrn:fo3.mrn||('ملف '+(i+1)), doctor:fo3.doctor||'', dept:fo3.dept||'', pct:r.pct||0, missing:missing,
+      fileIdx:i, mrn:fo3.mrn||('ملف '+(i+1)), doctor:fo3.doctor||'', dept:fo3.dept||'', appt:fo3.appt||'', pct:r.pct||0, missing:missing,
       date:    document.getElementById('s-date').value,
       auditor: document.getElementById('s-auditor').value,
       branch:  document.getElementById('s-branch').value,
@@ -844,9 +862,9 @@ function deselectAll() { cbahiSel={}; renderCbahiTab(); }
 function exportCbahiCSV() {
   var samples = getSelectedSamples();
   if (!samples.length) { toast('اختر ملفات أولاً'); return; }
-  var csv = '#,MRN,الطبيب,القسم,الاكتمال%,زيارة CBAHI,الفرع,المدقق,التاريخ,الحقول الناقصة\n';
+  var csv = '#,MRN,الطبيب,القسم,تاريخ الموعد,الشهر,الاكتمال%,زيارة CBAHI,الفرع,المدقق,التاريخ,الحقول الناقصة\n';
   samples.forEach(function(s,i){
-    csv += (i+1)+',"'+s.mrn+'","'+(s.doctor||'')+'","'+(s.dept||'')+'",'+s.pct+'%,"'+s.visit+'","'+s.branch+'","'+s.auditor+'",'+s.date+',"'+s.missing.join(' | ')+'"\n';
+    csv += (i+1)+',"'+s.mrn+'","'+(s.doctor||'')+'","'+(s.dept||'')+'","'+(s.appt||'')+'","'+(s.appt?monthLabel(s.appt):'')+'",'+s.pct+'%,"'+s.visit+'","'+s.branch+'","'+s.auditor+'",'+s.date+',"'+s.missing.join(' | ')+'"\n';
   });
   var a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
@@ -959,6 +977,123 @@ function renderAll() {
   renderTable();
   renderResults();
   renderHistory();
+}
+
+// ── Month helpers ──
+function monthLabel(dateStr) {
+  if (!dateStr) return '—';
+  var d = new Date(dateStr);
+  if (isNaN(d)) return '—';
+  var months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
+                'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  return months[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+function monthKey(dateStr) {
+  if (!dateStr) return '';
+  var d = new Date(dateStr);
+  if (isNaN(d)) return '';
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function getLast4Months(visitDateStr) {
+  var vd = visitDateStr ? new Date(visitDateStr) : new Date();
+  if (isNaN(vd)) vd = new Date();
+  var months = [];
+  for (var i = 3; i >= 0; i--) {
+    var d = new Date(vd.getFullYear(), vd.getMonth() - i, 1);
+    months.push({
+      key:   d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'),
+      label: ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
+              'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'][d.getMonth()]
+             + ' ' + d.getFullYear()
+    });
+  }
+  return months;
+}
+
+function renderCoverageCheck() {
+  var visitDate = document.getElementById('cbahi-visit-date').value;
+  var samples   = getSelectedSamples();
+  var card      = document.getElementById('cbahi-coverage');
+  var grid      = document.getElementById('coverage-grid');
+
+  if (!samples.length) { card.style.display='none'; return; }
+  card.style.display = 'block';
+
+  var months = getLast4Months(visitDate);
+
+  // تجميع العينات حسب الطبيب
+  var doctors = {};
+  samples.forEach(function(s) {
+    var doc = s.doctor || 'غير محدد';
+    if (!doctors[doc]) doctors[doc] = {dept: s.dept||'', months: {}};
+    var mk = monthKey(s.appt);
+    if (mk) {
+      if (!doctors[doc].months[mk]) doctors[doc].months[mk] = [];
+      doctors[doc].months[mk].push(s.mrn);
+    }
+  });
+
+  var hasGap = false;
+  var html = '';
+
+  // تحذيرات
+  var warnings = [];
+  Object.keys(doctors).forEach(function(doc) {
+    months.forEach(function(m) {
+      if (!doctors[doc].months[m.key] || !doctors[doc].months[m.key].length) {
+        warnings.push('د. ' + doc + ' — ناقص شهر ' + m.label);
+        hasGap = true;
+      }
+    });
+  });
+
+  if (warnings.length) {
+    html += '<div style="background:var(--rbg);border:1px solid #fca5a5;border-radius:var(--r);padding:12px 16px;margin-bottom:16px">'
+      +'<div style="font-weight:600;color:var(--red);margin-bottom:8px;font-size:13px">⚠ تحذير — شهور ناقصة في العينات:</div>'
+      +'<ul style="margin:0;padding-right:20px;color:var(--red);font-size:13px">'
+      + warnings.map(function(w){ return '<li>'+w+'</li>'; }).join('')
+      +'</ul></div>';
+  } else {
+    html += '<div style="background:var(--gbg);border:1px solid #86efac;border-radius:var(--r);padding:10px 16px;margin-bottom:16px;color:var(--green);font-weight:600;font-size:13px">'
+      +'✓ ممتاز — كل الأطباء لديهم تغطية كاملة للأشهر الأربعة</div>';
+  }
+
+  // جدول التغطية
+  html += '<div style="overflow-x:auto"><table class="tbl"><thead><tr>'
+    +'<th class="fth" style="min-width:140px">الطبيب / Doctor</th>'
+    +'<th style="min-width:80px">القسم</th>';
+  months.forEach(function(m){
+    html += '<th style="min-width:110px">'+m.label+'</th>';
+  });
+  html += '<th>التغطية</th></tr></thead><tbody>';
+
+  Object.keys(doctors).forEach(function(doc) {
+    var info = doctors[doc];
+    var covered = 0;
+    html += '<tr><td class="ftd"><strong>'+(doc==='غير محدد'?'غير محدد':('د. '+doc))+'</strong></td>'
+      +'<td style="font-size:12px">'+(info.dept||'—')+'</td>';
+    months.forEach(function(m) {
+      var mrns = info.months[m.key] || [];
+      if (mrns.length) {
+        covered++;
+        html += '<td style="background:var(--gbg)">'
+          +'<div style="color:var(--green);font-weight:600;font-size:12px">✓ موجود</div>'
+          +'<div style="font-size:10px;color:var(--muted);font-family:var(--mono)">'+mrns.join(', ')+'</div>'
+          +'</td>';
+      } else {
+        html += '<td style="background:var(--rbg)">'
+          +'<div style="color:var(--red);font-weight:600;font-size:12px">✗ ناقص</div>'
+          +'</td>';
+      }
+    });
+    var pctCovered = Math.round(covered/months.length*100);
+    html += '<td><span class="pct '+(pctCovered===100?'hi':pctCovered>=50?'mi':'lo')+'">'+pctCovered+'%</span></td></tr>';
+  });
+
+  html += '</tbody></table></div>';
+  grid.innerHTML = html;
 }
 
 function toast(msg) {
