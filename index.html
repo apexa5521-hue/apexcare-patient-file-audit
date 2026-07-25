@@ -456,7 +456,7 @@ function renderMRNs() {
         + '<input type="text" value="'+(fo.doctor||'')+'" placeholder="د. الاسم" data-field="doctor" data-fi="'+i+'"></div>'
       + '<div class="field"><label>القسم / Dept</label>'
         + '<input type="text" value="'+(fo.dept||'')+'" placeholder="قسم الأسنان..." data-field="dept" data-fi="'+i+'"></div>'
-      + '<div class="field"><label>تاريخ الموعد / Appt Date</label>'
+      + '<div class="field"><label>تاريخ إنشاء الملف / File Date</label>'
         + '<input type="date" value="'+(fo.appt||'')+'" data-field="appt" data-fi="'+i+'"></div>'
       + '</div>';
   });
@@ -752,7 +752,7 @@ function renderCbahiTab() {
     +'<th class="fth">رقم الملف / MRN</th>'
     +'<th>الطبيب</th>'
     +'<th>القسم</th>'
-    +'<th>تاريخ الموعد</th>'
+    +'<th>تاريخ إنشاء الملف</th>'
     +'<th>الشهر</th>'
     +'<th>الاكتمال</th>'
     +'<th>الحقول الناقصة</th>'
@@ -811,7 +811,7 @@ function renderCbahiSummary() {
     +'<div class="kpi" style="flex:1"><div class="kv" style="font-size:22px;color:var(--green)">'+avgPct+'%</div><div class="kl">متوسط الاكتمال</div></div>'
     +'</div>'
     +'<table class="tbl"><thead><tr>'
-    +'<th>#</th><th class="fth">MRN</th><th>الطبيب</th><th>القسم</th><th>تاريخ الموعد</th><th>الشهر</th><th>الاكتمال</th><th>زيارة CBAHI</th><th>الحقول الناقصة</th>'
+    +'<th>#</th><th class="fth">MRN</th><th>الطبيب</th><th>القسم</th><th>تاريخ إنشاء الملف</th><th>الشهر</th><th>الاكتمال</th><th>زيارة CBAHI</th><th>الحقول الناقصة</th>'
     +'</tr></thead><tbody>';
 
   samples.forEach(function(s,i){
